@@ -1034,6 +1034,7 @@ def _restrict(path, directory=False):
 
 
 def _ensure_private_dir(path):
+    """A failure here leaves the folder as its parent would, and `status` then warns about it."""
     if not os.path.isdir(path):
         os.makedirs(path, mode=0o700, exist_ok=True)
         _restrict(path, directory=True)
@@ -2300,6 +2301,11 @@ def cli_status(paths, _args):
     hook_warnings = _hook_warnings(paths)
     print("\n".join(hook_warnings), end="\n" if hook_warnings else "")
     print(f"data folder: {paths.data}")
+    if os.path.isdir(paths.data):
+        opened = (_windows_ace_count(paths.data) != 1 if os.name == "nt"
+                  else stat.S_IMODE(os.stat(paths.data).st_mode) & 0o077)
+        if opened:
+            print("data folder: warning: it is not private to your user, so others may read its fingerprints")
     print(f"memory folders: {len(roots)}, notes: {notes}")
     for root in roots:
         print(f"  {root}")

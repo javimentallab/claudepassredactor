@@ -70,7 +70,24 @@ class TestKey(unittest.TestCase):
         self.assertNotIn("Everyone", out)
         self.assertNotIn("Users:", out)
         self.assertNotIn("(I)", out, "nothing inherited")
-        self.assertEqual(mr._windows_ace_count(paths.data), 1)
+        folder = subprocess.run(["icacls", paths.data], capture_output=True).stdout.decode("utf-8", "ignore")
+        self.assertEqual(mr._windows_ace_count(paths.data), 1, f"{folder}\nlog: {box.log()}")
+
+    @unittest.skipUnless(os.name == "nt", "Windows access rules")
+    def test_status_warns_about_an_open_data_folder(self):
+        box = sandbox.Box()
+        paths = first_run(box)
+        self.assertNotIn("data folder: warning", box.run("status").out)
+        subprocess.run(["icacls", paths.data, "/grant", "*S-1-1-0:(OI)(CI)R"], capture_output=True, check=True)
+        self.assertIn("data folder: warning", box.run("status").out)
+
+    @unittest.skipIf(os.name == "nt", "POSIX modes")
+    def test_status_warns_about_an_open_data_folder_on_posix(self):
+        box = sandbox.Box()
+        paths = first_run(box)
+        self.assertNotIn("data folder: warning", box.run("status").out)
+        os.chmod(paths.data, 0o755)
+        self.assertIn("data folder: warning", box.run("status").out)
 
     def assert_key_kept_and_formats_work(self, box, paths, bad_key):
         write_raw(paths.key, bad_key)
