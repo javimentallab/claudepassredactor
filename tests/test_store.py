@@ -74,6 +74,23 @@ class TestKey(unittest.TestCase):
         self.assertEqual(mr._windows_ace_count(paths.data), 1, f"{folder}\nlog: {box.log()}")
 
     @unittest.skipUnless(os.name == "nt", "Windows access rules")
+    def test_explicit_rules_are_removed_too(self):
+        """Rules copied from a parent are not marked as inherited, and /inheritance:r leaves them."""
+        for directory in (True, False):
+            box = sandbox.Box()
+            target = os.path.join(box.root, "target")
+            if directory:
+                os.mkdir(target)
+            else:
+                write_raw(target, b"x")
+            subprocess.run(["icacls", target, "/grant", "*S-1-5-18:F", "/grant", "*S-1-5-32-544:F",
+                            "/grant", "*S-1-3-4:F"], capture_output=True, check=True)
+            self.assertGreaterEqual(mr._windows_ace_count(target), 3)
+            self.assertTrue(mr._restrict(target, directory=directory))
+            out = subprocess.run(["icacls", target], capture_output=True).stdout.decode("utf-8", "ignore")
+            self.assertEqual(mr._windows_ace_count(target), 1, out)
+
+    @unittest.skipUnless(os.name == "nt", "Windows access rules")
     def test_status_warns_about_an_open_data_folder(self):
         box = sandbox.Box()
         paths = first_run(box)

@@ -1025,8 +1025,11 @@ def _restrict(path, directory=False):
         return False
     icacls = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "icacls.exe")
     grant = f"*{sid}:(OI)(CI)F" if directory else f"*{sid}:F"
+    # Rules can be copied from a parent without the inherited mark, and /inheritance:r leaves those.
+    # SYSTEM, Administrators, OWNER RIGHTS and CREATOR OWNER are the ones seen in practice.
+    others = [f"*{s}" for s in ("S-1-5-18", "S-1-5-32-544", "S-1-3-4", "S-1-3-0") if s != sid]
     try:
-        return subprocess.run([icacls, path, "/inheritance:r", "/grant:r", grant],
+        return subprocess.run([icacls, path, "/inheritance:r", "/remove:g", *others, "/grant:r", grant],
                               capture_output=True, timeout=10,
                               creationflags=subprocess.CREATE_NO_WINDOW).returncode == 0
     except (OSError, subprocess.SubprocessError):
