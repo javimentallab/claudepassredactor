@@ -10,7 +10,7 @@ First public version.
 - Label detection, hook messages and command messages in 15 languages: en, es, pt, fr, de, it, nl, pl, ru, uk, zh-CN,
   ja, ko, th, hi. `--help` and `status` are in English.
 - Commands: `scan`, `redact`, `status`, `add`, `forget`, `reset`. `status` warns about a registered hook that has
-  backslashes or points to a missing file.
+  backslashes or points to a missing file, and about a data folder that is not private.
 - Optional `CLAUDEPASSREDACTOR_SHARED`: keeps fingerprints in step between computers through a file that a
   tool such as Syncthing synchronizes. `reset` leaves that file in place, because other computers use it.
 - Standard library only. Test suite runs with one command in a temporary folder.

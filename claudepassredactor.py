@@ -1036,7 +1036,9 @@ def _restrict(path, directory=False):
 def _ensure_private_dir(path):
     """A failure here leaves the folder as its parent would, and `status` then warns about it."""
     if not os.path.isdir(path):
-        os.makedirs(path, mode=0o700, exist_ok=True)
+        # On Windows the rules come only from _restrict. Recent Python versions turn mode 0o700 into
+        # explicit rules for SYSTEM and Administrators, which /inheritance:r does not remove.
+        os.makedirs(path, mode=0o777 if os.name == "nt" else 0o700, exist_ok=True)
         _restrict(path, directory=True)
 
 
