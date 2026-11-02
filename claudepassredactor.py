@@ -40,7 +40,7 @@ import sys
 import time
 import unicodedata
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 TAG = "[REDACTED]"
 KEY_BYTES = 32
@@ -1025,8 +1025,9 @@ def _restrict(path, directory=False):
         return False
     icacls = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "icacls.exe")
     grant = f"*{sid}:(OI)(CI)F" if directory else f"*{sid}:F"
-    # Rules can be copied from a parent without the inherited mark, and /inheritance:r leaves those.
-    # SYSTEM, Administrators, OWNER RIGHTS and CREATOR OWNER are the ones seen in practice.
+    # On GitHub's Windows runners the folder kept rules for SYSTEM, Administrators and OWNER RIGHTS
+    # without the inherited mark, and /inheritance:r does not remove those. CREATOR OWNER goes too,
+    # as a precaution.
     others = [f"*{s}" for s in ("S-1-5-18", "S-1-5-32-544", "S-1-3-4", "S-1-3-0") if s != sid]
     try:
         return subprocess.run([icacls, path, "/inheritance:r", "/remove:g", *others, "/grant:r", grant],
@@ -1037,11 +1038,9 @@ def _restrict(path, directory=False):
 
 
 def _ensure_private_dir(path):
-    """A failure here leaves the folder as its parent would, and `status` then warns about it."""
+    """A failure in _restrict leaves the folder as mkdir made it, and `status` then warns about it."""
     if not os.path.isdir(path):
-        # On Windows the rules come only from _restrict. Recent Python versions turn mode 0o700 into
-        # explicit rules for SYSTEM and Administrators, which /inheritance:r does not remove.
-        os.makedirs(path, mode=0o777 if os.name == "nt" else 0o700, exist_ok=True)
+        os.makedirs(path, mode=0o700, exist_ok=True)
         _restrict(path, directory=True)
 
 
@@ -2261,13 +2260,14 @@ def _script_exists(script):
 
 
 def _hook_warnings(paths):
-    """A wrong path is worse than it looks: Python exits with code 2, and Claude Code takes that
-    from a UserPromptSubmit hook as a refusal of the message. Only an explicit PowerShell hook
-    can use backslashes: Git Bash, the default on Windows, removes them."""
+    """A wrong path is worse than it looks: Python exits with code 2, and Claude Code then blocks
+    the message of a UserPromptSubmit hook (checked on 2.1.316). Git Bash, the default on Windows,
+    removes backslashes outside quotes. Inside double quotes they worked in that check, but forward
+    slashes are simpler, so any backslash is reported unless the hook is an explicit PowerShell one."""
     lines = set()
     for command, script, shell in _registered_commands(paths):
         if "\\" in command and shell != "powershell":
-            lines.add(f"warning: a hook command has backslashes, which break it; use forward slashes: {command}")
+            lines.add(f"warning: a hook command has backslashes, which can break it; use forward slashes: {command}")
         elif not _script_exists(script):
             lines.add(f"warning: a hook command points to a file that does not exist: {script}")
     return sorted(lines)

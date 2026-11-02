@@ -73,7 +73,19 @@ En Windows, cópialo en `C:\Users\<tú>\.claude\hooks\`.
 }
 ```
 
-En Windows, escribe la ruta con barras normales: `python -I C:/Users/<tú>/.claude/hooks/claudepassredactor.py prompt`. **Una barra invertida rompe el hook:** Claude Code ejecuta el comando con Git Bash, que la elimina; Python no encuentra entonces el fichero y termina con código 2, y Claude Code bloquea tu mensaje. `status` avisa de una barra invertida y de un fichero que no existe.
+En Windows, escribe la ruta con barras normales: `python -I C:/Users/<tú>/.claude/hooks/claudepassredactor.py prompt`. Claude Code ejecuta el comando con Git Bash, que elimina las barras invertidas fuera de las comillas, así que el hook busca un fichero que no existe aunque el tuyo sí exista. Entre comillas dobles, una ruta con barras invertidas funcionó al probarla, pero `status` avisa igualmente de cualquier barra invertida.
+
+**Si la ruta está mal, tus mensajes quedan bloqueados.** Python no puede abrir el fichero y termina con código 2, y Claude Code bloquea el mensaje al recibir ese código. No llega nada a Claude, y pasa lo mismo con cada mensaje, así que no puedes usar Claude Code hasta corregir `settings.json`. Lo reconoces por este texto en lugar de una respuesta, tal como lo mostró `claude -p` en Windows con Claude Code 2.1.316, con código de salida 0:
+
+```text
+UserPromptSubmit operation blocked by hook:
+[python -I "C:/wrong/path/claudepassredactor.py" prompt]: C:\Python311\python.exe: can't open file 'C:\\wrong\\path\\claudepassredactor.py': [Errno 2] No such file or directory
+
+
+Original prompt: your message
+```
+
+Para arreglarlo, abre `~/.claude/settings.json` en un editor de texto, corrige la ruta y vuelve a arrancar Claude Code; él no puede hacer el cambio mientras tus mensajes estén bloqueados. Después ejecuta `status` en una terminal: avisa de una barra invertida y de un fichero que no existe.
 
 `-I` impide que Python cargue módulos de la carpeta actual o de las variables `PYTHON*`, para que un fichero plantado no pueda ejecutarse dentro del hook.
 
@@ -90,7 +102,7 @@ La clave se crea con el primer mensaje. Para tapar lo que ya esté en tus notas,
 
 ## Desinstalar y revertir
 
-1. Quita sus entradas de `~/.claude/settings.json`. Hazlo lo primero: mientras falte el fichero de un hook, Claude Code bloquea tus mensajes.
+1. Quita sus entradas de `~/.claude/settings.json`. Hazlo lo primero: mientras falte el fichero del hook `prompt`, Claude Code bloquea tus mensajes.
 2. Borra `~/.claude/hooks/claudepassredactor.py`.
 3. Borra sus datos, clave incluida: `~/.claude/claudepassredactor/`, y el fichero compartido si definiste `CLAUDEPASSREDACTOR_SHARED`.
 
@@ -110,7 +122,7 @@ Claude escribe una nota ──► hook memory ──► revisión ──► camb
 - **Dónde está cada cosa.** Por defecto en `~/.claude/claudepassredactor/`, fuera de las carpetas de memoria: `key.bin`, `fingerprints.json`, `state.json`, `redactor.log`. La carpeta y los ficheros son privados de tu usuario: modo `0700`/`0600`, o una ACL equivalente en Windows.
 - **Qué carpetas.** Todas las `~/.claude/projects/*/memory`, `~/.claude/agent-memory` y `autoMemoryDirectory` de tus ajustes de **usuario**. Los ficheros de ajustes de proyecto no se leen a propósito, para que un repositorio clonado no pueda apuntar la herramienta a otras carpetas con esa opción. (Un repositorio en el que confías ya puede ejecutar sus propios hooks, así que esto no es un aislamiento.) Si usas esa opción en un proyecto, pon la carpeta en `CLAUDEPASSREDACTOR_DIRS`.
 - **Las escrituras son atómicas.** Una nota se escribe en un fichero temporal, se vuelca al disco y se intercambia. Si algo falla, el original queda entero y la siguiente pasada lo vuelve a intentar. No hay ninguna alternativa que escriba sobre el fichero.
-- **Nunca te bloquea.** Una vez en marcha, un hook siempre termina con código 0. Los problemas van al log y aparecen una vez, como un aviso corto que te pide ejecutar `status`. La excepción es un hook que no llega a arrancar por una ruta mal escrita: consulta [Instalación](#instalación).
+- **Un hook en marcha nunca te bloquea.** Siempre termina con código 0. Los problemas van al log y aparecen una vez, como un aviso corto que te pide ejecutar `status`. Una ruta mal escrita es distinta: el hook no llega a arrancar y Claude Code bloquea tus mensajes. Consulta [Instalación](#instalación).
 - **El log no guarda datos.** Apunta recuentos, nombres de fichero, números de línea y tipos de coincidencia; de los errores, solo tipo, código y línea.
 
 ## Comandos

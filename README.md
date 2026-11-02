@@ -73,7 +73,19 @@ On Windows, copy it to `C:\Users\<you>\.claude\hooks\`.
 }
 ```
 
-On Windows, write the path with forward slashes: `python -I C:/Users/<you>/.claude/hooks/claudepassredactor.py prompt`. **A backslash breaks the hook:** Claude Code runs the command through Git Bash, which removes it; Python then cannot find the file and exits with code 2, and Claude Code blocks your message. `status` warns about a backslash and about a file that does not exist.
+On Windows, write the path with forward slashes: `python -I C:/Users/<you>/.claude/hooks/claudepassredactor.py prompt`. Claude Code runs the command through Git Bash, which removes backslashes outside quotes, so the hook looks for a file that does not exist even if yours does. Inside double quotes a path with backslashes worked when tested, but `status` warns about any backslash all the same.
+
+**If the path is wrong, your messages are blocked.** Python cannot open the file and exits with code 2, and Claude Code blocks the message on that code. Nothing reaches Claude, and the same happens with every message, so you cannot use Claude Code until you correct `settings.json`. You recognize it by this text in place of an answer, as `claude -p` printed it on Windows with Claude Code 2.1.316, with exit code 0:
+
+```text
+UserPromptSubmit operation blocked by hook:
+[python -I "C:/wrong/path/claudepassredactor.py" prompt]: C:\Python311\python.exe: can't open file 'C:\\wrong\\path\\claudepassredactor.py': [Errno 2] No such file or directory
+
+
+Original prompt: your message
+```
+
+To fix it, open `~/.claude/settings.json` in a text editor, correct the path and start Claude Code again; it cannot make the change for you while your messages are blocked. Then run `status` from a terminal: it warns about a backslash and about a file that does not exist.
 
 `-I` stops Python from loading modules from the current folder or from `PYTHON*` variables, so a planted file cannot run inside the hook.
 
@@ -90,7 +102,7 @@ The key is created on the first message. To mask what is already in your notes, 
 
 ## Uninstall and revert
 
-1. Remove its entries from `~/.claude/settings.json`. Do this first: while a hook's file is missing, Claude Code blocks your messages.
+1. Remove its entries from `~/.claude/settings.json`. Do this first: while the `prompt` hook's file is missing, Claude Code blocks your messages.
 2. Delete `~/.claude/hooks/claudepassredactor.py`.
 3. Delete its data, including the key: `~/.claude/claudepassredactor/`, and the shared file if you set `CLAUDEPASSREDACTOR_SHARED`.
 
@@ -110,7 +122,7 @@ Claude writes a note ──► memory hook ──► review ──► replaces m
 - **Where things live.** By default in `~/.claude/claudepassredactor/`, outside the memory folders: `key.bin`, `fingerprints.json`, `state.json`, `redactor.log`. The folder and files are private to your user: mode `0700`/`0600`, or an equivalent ACL on Windows.
 - **Which folders.** Every `~/.claude/projects/*/memory`, `~/.claude/agent-memory`, and `autoMemoryDirectory` from your **user** settings. Project settings files are deliberately not read, so that a cloned repository cannot point the tool at other folders through that option. (A repository you have trusted can already run its own hooks, so this is not a sandbox.) If you set that option in a project, list the folder in `CLAUDEPASSREDACTOR_DIRS`.
 - **Writes are atomic.** A note is written to a temporary file, flushed, then swapped in. If anything fails, the original stays whole and the next pass tries again. There is no fallback that writes in place.
-- **It never blocks you.** Once running, a hook always exits 0. Problems go to the log and appear once as a short warning asking you to run `status`. The exception is a hook that cannot start because of a wrong path: see [Install](#install).
+- **A running hook never blocks you.** It always exits 0. Problems go to the log and appear once as a short warning asking you to run `status`. A wrong path is different: the hook never starts, and Claude Code blocks your messages. See [Install](#install).
 - **The log holds no data.** It records counts, file names, line numbers and kinds of match; for errors, only type, code and line.
 
 ## Commands

@@ -53,6 +53,13 @@ class TestKey(unittest.TestCase):
         for path in (paths.fingerprints, paths.state, paths.log, paths.lock):
             self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600, path)
 
+    def test_a_new_folder_is_asked_for_with_mode_0700_on_every_system(self):
+        target = os.path.join(sandbox.Box().root, "new")
+        with mock.patch.object(mr.os, "makedirs", wraps=os.makedirs) as makedirs:
+            mr._ensure_private_dir(target)
+        self.assertEqual(makedirs.call_args.kwargs.get("mode"), 0o700)
+        self.assertTrue(os.path.isdir(target))
+
     @unittest.skipIf(os.name == "nt", "POSIX permission bits")
     def test_open_key_is_tightened(self):
         box = sandbox.Box()
@@ -75,7 +82,7 @@ class TestKey(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "nt", "Windows access rules")
     def test_explicit_rules_are_removed_too(self):
-        """Rules copied from a parent are not marked as inherited, and /inheritance:r leaves them."""
+        """As on GitHub's Windows runners: rules without the inherited mark, which /inheritance:r leaves."""
         for directory in (True, False):
             box = sandbox.Box()
             target = os.path.join(box.root, "target")

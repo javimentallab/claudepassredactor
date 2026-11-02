@@ -1,6 +1,7 @@
 """The hook as Claude Code runs it, as a subprocess, plus the command line and leak checks."""
 import json
 import os
+import subprocess
 import sys
 import unittest
 from unittest import mock
@@ -452,12 +453,26 @@ class TestHookPaths(unittest.TestCase):
         self.settings(box, f"C:\\Python\\python.exe -I {self.script(box)} prompt")
         self.assertIn("backslashes", box.run("status").out)
 
+    def test_a_quoted_backslash_is_reported_as_something_that_can_break(self):
+        box = sandbox.Box()
+        self.settings(box, 'python -I "C:\\Users\\you\\.claude\\hooks\\claudepassredactor.py" prompt')
+        result = box.run("status")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("backslashes, which can break it", result.out)
+
     def test_a_missing_file_is_reported(self):
         box = sandbox.Box()
         self.settings(box, f"python -I {box.config.replace(chr(92), '/')}/nowhere/claudepassredactor.py prompt")
         result = box.run("status")
         self.assertEqual(result.returncode, 2)
         self.assertIn("does not exist", result.out)
+
+    def test_python_exits_with_2_when_the_file_is_missing(self):
+        """The code that makes Claude Code block the message, as the READMEs explain."""
+        missing = os.path.join(sandbox.Box().root, "nowhere", "claudepassredactor.py")
+        result = subprocess.run([sys.executable, "-I", missing, "prompt"], capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(b"No such file or directory", result.stderr)
 
     def test_a_relative_path_is_reported(self):
         box = sandbox.Box()
@@ -536,6 +551,13 @@ class TestInstallDocs(unittest.TestCase):
             self.assertIn('"env"', text, name)
             self.assertIn("scan --all", text, name)
             self.assertIn("(NOTICE)", text, name)
+
+    def test_the_readmes_say_what_a_wrong_path_does_and_how_to_fix_it(self):
+        for name in ("README.md", "README.es.md"):
+            text = self.read(name)
+            self.assertIn("UserPromptSubmit operation blocked by hook:", text, name)
+            self.assertIn("[Errno 2] No such file or directory", text, name)
+            self.assertIn("`~/.claude/settings.json`", text.split("operation blocked by hook:", 1)[1], name)
 
     def test_notice_names_the_only_third_party_module(self):
         self.assertIn("Pillow", self.read("NOTICE"))
