@@ -1,0 +1,10 @@
+claudepassredactor
+Copyright (c) 2026 javimentallab. Released under the MIT licence: see LICENSE.
+
+The tool includes no third-party code and has no runtime dependencies.
+
+Pillow is used only by tools/render_illustration.py, to regenerate docs/before-after.png. It is not
+included in this repository.
+
+- Pillow, by Jeffrey A. Clark and contributors. Licence: MIT-CMU.
+  https://python-pillow.github.io/

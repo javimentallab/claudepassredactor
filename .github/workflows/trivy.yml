@@ -1,0 +1,49 @@
+name: Trivy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'   # Mondays 06:00 UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    name: Trivy filesystem scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Run Trivy (vuln + secret + misconfig)
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" -w /src \
+            ghcr.io/aquasecurity/trivy:0.65.0 fs \
+            --scanners vuln,secret,misconfig \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --format sarif --output trivy-results.sarif \
+            --exit-code 0 --no-progress .
+
+      - name: Upload results to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Fail on findings
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" -w /src \
+            ghcr.io/aquasecurity/trivy:0.65.0 fs \
+            --scanners vuln,secret,misconfig \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --skip-files trivy-results.sarif \
+            --exit-code 1 --no-progress .

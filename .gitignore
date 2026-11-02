@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Never commit the tool's own data, wherever a test run or a mistake might leave it
+key.bin
+key.bin.*
+fingerprints.*
+state.json
+redactor.log
+redactor.log.*
+*.tmp
+
+# Editors and systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
