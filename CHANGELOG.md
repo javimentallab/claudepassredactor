@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0
+
+- 22 more token formats: xAI, Groq, Perplexity, Replicate, Square, Shopify, Twilio, Azure Storage, Mailgun, Mailchimp,
+  Supabase, Databricks, Doppler, Postman, Atlassian, Notion, Linear, Grafana, New Relic, Sentry, Tailscale and age keys.
+- Random values under any name: `NAME=value` and `NAME: value` are masked when the value looks random, even if the name
+  says nothing about secrets, as with session cookies (`HSID=…`) or `GRAFANA_AUTH=…`. Names of ids, versions, hashes,
+  paths and hosts, and values that are dates, file names, git or GPG hashes or snake_case names, are left alone.
+  Measured on 1.9 GB of real conversation logs, and checked on real memory folders with no new matches.
+
 ## 1.0.1
 
 - A new data folder is created with mode `0700` on every system, Windows included. Explicit rules for SYSTEM,

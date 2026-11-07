@@ -11,6 +11,7 @@ from tests.sandbox import mr
 
 FILL = "A1b2C3d4"
 KEY_LINE = "MIIE" + FILL * 7 + "abcd"     # as long as a real line of a key
+HEX = "ab12cd34" * 4                     # 32 hex digits
 KEY = b"k" * mr.KEY_BYTES
 
 
@@ -53,6 +54,27 @@ TOKENS = {
     "telegram": "123456789" + ":AA" + FILL * 5,
     "digitalocean": "dop" + "_v1_" + "ab12cd34" * 6,
     "jwt": "eyJ" + FILL + "." + "eyJ" + FILL + "." + FILL * 2,
+    "twilio": "SK" + HEX,
+    "shopify": "shp" + "at_" + HEX,
+    "square": "sq0" + "atp-" + FILL * 3,
+    "mailgun": "key" + "-" + HEX,
+    "mailchimp": HEX + "-us" + "21",
+    "atlassian": "ATA" + "TT3" + FILL * 13,
+    "notion": "ntn" + "_" + FILL * 6,
+    "linear": "lin" + "_api_" + FILL * 5,
+    "groq": "gs" + "k_" + FILL * 7,
+    "xai": "xa" + "i-" + FILL * 9,
+    "replicate": "r8" + "_" + FILL * 5,
+    "perplexity": "pp" + "lx-" + FILL * 6,
+    "supabase": "sb" + "p_" + HEX + "ab12cd34",
+    "doppler": "dp" + ".st." + FILL * 6,
+    "postman": "PM" + "AK-" + HEX[:24] + "-" + HEX + "ab",
+    "databricks": "da" + "pi" + HEX,
+    "grafana": "gl" + "sa_" + FILL * 4 + "_" + "ab12cd34",
+    "newrelic": "NR" + "AK-" + "A1B2C3D4E5F6G7H8I9J0K1L2M3N",
+    "sentry": "sn" + "trys_" + FILL * 6,
+    "tailscale": "ts" + "key-auth-" + FILL + "CNTRL-" + FILL * 3,
+    "age": "AGE-SECRET" + "-KEY-1" + "QZ9" * 19 + "Q",
     "pem": PEM_BEGIN + "\n" + KEY_LINE + "\n" + FILL + "==\n" + PEM_END,
     "pgp": PGP_BEGIN + "\n" + KEY_LINE + "\n" + PGP_END,
 }
@@ -129,6 +151,31 @@ class TestFormatEdges(unittest.TestCase):
     def test_prose_after_bearer_is_left_alone(self):
         text = "The bearer of this document may enter.\n"
         self.assertEqual(redact(text), text)
+
+
+class TestAssigned(unittest.TestCase):
+    """NAME=value with a random value and a name that says nothing about secrets."""
+    RANDOM = "Xk9fP2mQ" + "7vL4nR8s" + "T1wZ"
+
+    def test_random_value_is_masked(self):
+        for text in (f"GRAFANA_AUTH={self.RANDOM}\n", f"cookie: HSID={self.RANDOM}; SSID=x\n",
+                     f'export HA_LLAVE="{self.RANDOM}"\n'):
+            with self.subTest(text=text):
+                self.assertEqual(redact(text), text.replace(self.RANDOM, mr.TAG))
+
+    def test_remembered_from_a_message(self):
+        self.assertIn((self.RANDOM, "strong"), mr.prompt_candidates(f"set GRAFANA_AUTH={self.RANDOM} please"))
+
+    def test_ids_versions_hashes_and_names_are_left_alone(self):
+        for text in ("GIT_COMMIT=4f2a9c81d7e6b5a4f3e2d1c0b9a8f7e6d5c4b3a2", f"SESSION_ID={self.RANDOM}",
+                     "BUILD=2024-11-07T10:00:00Z", "NODE_ENV=production", "IMAGE_TAG=v1.2.3-alpine3.19",
+                     "KEY_KP5: self.evdev.ecodes.KEY_KP5x9", "HEAD:src/Components/App2.css",
+                     "FAIL: test_secret_Label_zh_42", "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+                     "VIPRE: Trojan.Win32.Generic2.91", "KEY_PHILIPS_POWER = Philips_Remote_KEY_POWER2",
+                     "REQUEST=3f2b9c4e-8a7d-4e6f-9b1a-2c3d4e5f6a7b", "MSG=msg_01XyZ9AbCdEfGhIjKlMnOpQr",
+                     "lower_case=Xk9fP2mQ7vL4nR8sT1wZ"):
+            with self.subTest(text=text):
+                self.assertEqual(redact(text + "\n"), text + "\n")
 
 
 class TestLabels(unittest.TestCase):

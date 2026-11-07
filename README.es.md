@@ -17,9 +17,10 @@ Solo en ficheros Markdown dentro de las carpetas de memoria:
 | Qué | Ejemplo | Cuándo |
 |---|---|---|
 | Secretos que hayas dado en un mensaje, reconocidos allí por etiqueta o formato | `Hunter-2024x`, que luego se encuentra aunque no lleve etiqueta al lado | Los valores fuertes, en cualquier sitio; los PIN y valores cortos, solo si poco antes, en la misma frase, hay una palabra como *contraseña* o *PIN* |
-| Tokens con formato conocido | GitHub, GitLab, Anthropic, OpenAI, Stripe, Slack, Discord, AWS, Google, npm, PyPI, Hugging Face, SendGrid, Telegram, DigitalOcean, JWT, cabeceras `Authorization`, claves privadas PEM y PGP | Siempre, aunque no vengan de tus mensajes |
+| Tokens con formato conocido | GitHub, GitLab, Anthropic, OpenAI, xAI, Groq, Perplexity, Replicate, Stripe, Square, Shopify, Twilio, Slack, Discord, AWS, Azure Storage, Google, npm, PyPI, Hugging Face, SendGrid, Mailgun, Mailchimp, Telegram, DigitalOcean, Supabase, Databricks, Doppler, Postman, Atlassian, Notion, Linear, Grafana, New Relic, Sentry, Tailscale, claves age, JWT, cabeceras `Authorization`, claves privadas PEM y PGP | Siempre, aunque no vengan de tus mensajes |
 | Valores con etiqueta | `contraseña: X`, `DB_PASSWORD=X`, `"password": "X"`, celdas de tabla, `API_KEY=X` | Si X parece un secreto: al menos 8 caracteres mezclando letras con cifras o símbolos, o 8 cifras o más |
 | Contraseñas en URL | `postgres://usuario:X@host`, `redis://:X@host` | Si X es fuerte o tiene al menos 8 letras; el `123456` de un manual se queda salvo que lo hayas dado tú |
+| Valores aleatorios con cualquier nombre | `HSID=X` en una cookie copiada, `GRAFANA_AUTH=X` en un comando | Si X parece aleatorio: 16 caracteres o más mezclando mayúsculas, minúsculas y cifras. Se dejan los nombres de identificadores, versiones, hashes, rutas y hosts, y los valores que son fechas, nombres de fichero, hashes o nombres con guiones bajos |
 
 **Idiomas.** Las etiquetas se reconocen en 15 idiomas: inglés, español, portugués, francés, alemán, italiano, neerlandés, polaco, ruso, ucraniano, chino simplificado, japonés, coreano, tailandés e hindi. Por ejemplo *mot de passe : X*, *Das WLAN-Passwort lautet X*, *пароль — X*, *密码是X*, *パスワードはXです*, *비밀번호는 X입니다*, *รหัสผ่านคือ X*, *मेरा पासवर्ड X है*. Los mensajes del hook y de los comandos salen en esos mismos idiomas.
 

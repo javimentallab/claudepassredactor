@@ -17,9 +17,10 @@ Only in Markdown files inside memory folders:
 | What | Example | When |
 |---|---|---|
 | Secrets you gave in a message, recognised there by label or format | `Hunter-2024x`, found later even with no label next to it | Strong values anywhere; PINs and short values only if a keyword like *password* or *PIN* comes a little earlier in the same sentence |
-| Tokens with a known format | GitHub, GitLab, Anthropic, OpenAI, Stripe, Slack, Discord, AWS, Google, npm, PyPI, Hugging Face, SendGrid, Telegram, DigitalOcean, JWT, `Authorization` headers, PEM and PGP private keys | Always, even from sources other than your messages |
+| Tokens with a known format | GitHub, GitLab, Anthropic, OpenAI, xAI, Groq, Perplexity, Replicate, Stripe, Square, Shopify, Twilio, Slack, Discord, AWS, Azure Storage, Google, npm, PyPI, Hugging Face, SendGrid, Mailgun, Mailchimp, Telegram, DigitalOcean, Supabase, Databricks, Doppler, Postman, Atlassian, Notion, Linear, Grafana, New Relic, Sentry, Tailscale, age keys, JWT, `Authorization` headers, PEM and PGP private keys | Always, even from sources other than your messages |
 | Labelled values | `password: X`, `DB_PASSWORD=X`, `"password": "X"`, table cells, `API_KEY=X` | If X looks like a secret: at least 8 characters, mixing letters with digits or symbols, or 8 or more digits |
 | URL passwords | `postgres://user:X@host`, `redis://:X@host` | If X is strong or at least 8 letters; `123456` from a manual stays unless you gave it |
+| Random values under any name | `HSID=X` in a copied cookie, `GRAFANA_AUTH=X` in a command | If X looks random: 16 or more characters mixing upper and lower case with digits. Names of ids, versions, hashes, paths and hosts, and values that are dates, file names, hashes or snake_case names, are left alone |
 
 **Languages.** Labels are recognised in 15 languages: English, Spanish, Portuguese, French, German, Italian, Dutch, Polish, Russian, Ukrainian, Simplified Chinese, Japanese, Korean, Thai and Hindi. For example *mot de passe : X*, *Das WLAN-Passwort lautet X*, *пароль — X*, *密码是X*, *パスワードはXです*, *비밀번호는 X입니다*, *รหัสผ่านคือ X*, *मेरा पासवर्ड X है*. Messages from the hook and the commands use the same languages.
 

@@ -32,6 +32,7 @@ from __future__ import annotations
 import functools
 import hmac
 import json
+import math
 import os
 import re
 import secrets
@@ -40,7 +41,7 @@ import sys
 import time
 import unicodedata
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 
 TAG = "[REDACTED]"
 KEY_BYTES = 32
@@ -673,6 +674,28 @@ _FORMATS = tuple((name, re.compile(pattern)) for name, pattern in (
     ("telegram", r"(?<![\d:])\d{8,10}:AA[A-Za-z0-9_-]{30,}"),
     ("digitalocean", r"do[opr]_v1_[a-f0-9]{40,}"),
     ("jwt", _EDGE + r"eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
+    ("twilio", r"SK[0-9a-fA-F]{32}(?![0-9a-fA-F])"),
+    ("shopify", r"shp(?:at|ss|ca|pa)_[a-fA-F0-9]{32}"),
+    ("square", r"sq0(?:atp|csp)-[0-9A-Za-z_-]{22,}"),
+    ("mailgun", r"key-[0-9a-f]{32}(?![0-9a-f])"),
+    ("mailchimp", r"[0-9a-f]{32}-us\d{1,2}(?!\d)"),
+    ("atlassian", r"ATATT3[A-Za-z0-9_=-]{100,}"),
+    ("notion", r"ntn_[A-Za-z0-9]{40,}|secret_[A-Za-z0-9]{43}(?![A-Za-z0-9])"),
+    ("linear", r"lin_api_[A-Za-z0-9]{40}"),
+    ("groq", r"gsk_[A-Za-z0-9]{48,}"),
+    ("xai", r"xai-[A-Za-z0-9]{70,}"),
+    ("replicate", r"r8_[A-Za-z0-9]{37,}"),
+    ("perplexity", r"pplx-[A-Za-z0-9]{40,}"),
+    ("supabase", r"sbp_[a-f0-9]{40}"),
+    ("doppler", r"dp\.(?:st|pt|ct|sa|scim|audit)\.[A-Za-z0-9_-]{40,}"),
+    ("postman", r"PMAK-[a-f0-9]{24}-[a-f0-9]{34}"),
+    ("databricks", r"dapi[a-f0-9]{32}(?:-\d)?"),
+    ("grafana", r"glsa_[A-Za-z0-9]{32}_[A-Fa-f0-9]{8}|glc_[A-Za-z0-9+/]{32,}={0,2}"),
+    ("newrelic", r"NRAK-[A-Z0-9]{27}"),
+    ("sentry", r"sntry[su]_[A-Za-z0-9+/=_-]{40,}"),
+    ("tailscale", r"tskey-[a-z]+-[A-Za-z0-9]{10,}-[A-Za-z0-9]{20,}"),
+    ("age", r"AGE-SECRET-KEY-1[0-9A-Z]{58}"),
+    ("azure-storage", r"AccountKey=(?P<v>[A-Za-z0-9+/]{80,}={0,2})"),
     ("authorization", r"(?i:authorization\s*[:=]\s*(?:bearer|basic|token)\s+)"
                       r"(?P<v>[A-Za-z0-9._~+/-]{16,}={0,2})"),
     ("bearer", r"(?i:(?<!\w)bearer\s+)(?P<v>[A-Za-z0-9._~+/-]{20,}={0,2})"),
@@ -757,6 +780,47 @@ def _url_matches(text):
             yield m.start(group), m.end(group), value
 
 
+# Any NAME=value whose value looks random, even when NAME says nothing about secrets: HSID=... in
+# a copied cookie, GRAFANA_AUTH=... in a command. Names and values of ids, versions, hashes, file
+# names and snake_case names are left alone. Measured on 1.9 GB of real conversation logs: what it
+# found besides labelled values were session cookies.
+_ASSIGNED = re.compile(r"(?<![A-Za-z0-9_])(?P<n>[A-Z][A-Z0-9_]{2,40})[ \t]*[=:][ \t]*[\"']?(?P<v>[A-Za-z0-9+/_.~=-]{16,256})")
+_NOT_SECRET_NAME = re.compile(
+    r"(?:^|_)(?:IDS?|UUID|GUID|SHA\d*|HASH|COMMIT|REV|VERSION|PATH|DIR|FILE|URL|URI|HOST|PORT|USER(?:NAME)?|NAME"
+    r"|EMAIL|REGION|ZONE|TZ|LANG|LOCALE|MODEL|BRANCH|TAG|IMAGE|CHECKSUM|FAIL|FAILED|ERROR|DEBUG|INFO|WARN|WARNING"
+    r"|TRACE|NOTE|TODO|FIXME|HEAD|FINGERPRINT|GPG_KEY)$")
+_NOT_RANDOM = re.compile(r".*\..*|[0-9a-fA-F]{40}|[0-9a-fA-F]{64}|.*\d{4}-\d{2}-\d{2}.*"
+                         r"|(?:[A-Za-z]{1,14}\d{0,3}|\d{1,6})(?:[_-](?:[A-Za-z]{1,14}\d{0,3}|\d{1,6})){2,}")
+_ID_PREFIX = re.compile(r"(?:msg|toolu|srvtoolu|req|call|chatcmpl|run|file|asst|thread|evt|ch|cus|pi|sub|in|txn"
+                        r"|price|prod|acct|sess|resp|batch|org|proj|user|ws|cs|cse|session|seti|pm|src|tok_test)[_-]")
+_UUID = re.compile(r"[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}")
+
+
+def _entropy(value):
+    counts = {}
+    for ch in value:
+        counts[ch] = counts.get(ch, 0) + 1
+    return -sum(n / len(value) * math.log2(n / len(value)) for n in counts.values())
+
+
+def _looks_random(value):
+    kinds = _char_kinds(value)
+    mixed = "d" in kinds and "l" in kinds and value.lower() != value and value.upper() != value
+    return ((mixed or (len(value) >= 32 and "d" in kinds)) and _entropy(value) >= 3.5
+            and not _UUID.search(value) and not _ID_PREFIX.match(value) and not _DEMO_TOKEN.search(value))
+
+
+def _assigned_matches(text):
+    if "=" not in text and ":" not in text:
+        return
+    for m in _ASSIGNED.finditer(text):
+        value = m.group("v").rstrip(".")
+        if (_NOT_SECRET_NAME.search(m.group("n")) or _NOT_RANDOM.fullmatch(value)
+                or classify(value, quoted=True) != "strong" or not _looks_random(value)):
+            continue
+        yield m.start("v"), m.start("v") + len(value), value
+
+
 def prompt_candidates(text, deadline=None):
     """[(value, strength)] for everything in a user's message that looks like a secret."""
     found = {}
@@ -775,6 +839,8 @@ def prompt_candidates(text, deadline=None):
     for _name, _start, _end, value in _format_matches(text):
         note(value, "strong")
     for _start, _end, value in _url_matches(text):
+        note(value, "strong")
+    for _start, _end, value in _assigned_matches(text):
         note(value, "strong")
     return list(found.items())
 
@@ -861,6 +927,8 @@ def find_spans(text, key=None, index=None, deadline=None, fingerprints_only=Fals
                 spans.append((value.start, value.end, "label"))
         for start, end, _value in _url_matches(text):
             spans.append((start, end, "url"))
+        for start, end, _value in _assigned_matches(text):
+            spans.append((start, end, "assigned"))
     if key and index:
         for start, end in _fingerprint_matches(text, key, index, deadline):
             spans.append((start, end, "fingerprint"))
